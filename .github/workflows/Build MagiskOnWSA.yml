@@ -109,15 +109,20 @@ jobs:
                   DOWNLOAD_DIR=../download
                   DOWNLOAD_CONF_NAME=download.list
                   mkdir -p "$DOWNLOAD_DIR"
+
                   declare -A opts=( ["ARCH,x86_64"]="x64" ["ARCH,ARM64"]="arm64" ["RELEASE_TYPE,General Availability Channel"]="retail" ["RELEASE_TYPE,Release Preview Channel"]="RP" ["RELEASE_TYPE,Beta Channel"]="WIS" ["RELEASE_TYPE,Dev Channel"]="WIF" ["MAGISK_VER,Stable"]="stable" ["MAGISK_VER,Beta"]="beta" ["MAGISK_VER,Canary"]="canary" ["MAGISK_VER,Debug"]="debug" ["MAGISK_VER,Custom"]="--magisk-custom" ["GAPPS_VAR,None"]="none" ["GAPPS_VAR,Pico"]="pico" ["GAPPS_VAR,Full"]="full" ["REMOVE_AMAZON,true"]="--remove-amazon" ["NOFIX_PROPS,true"]="--nofix-props" ["SKIP_DOWNLOAD_WSA,true"]="--skip-download-wsa" ["COMPRESSION,ZIP"]="zip" ["COMPRESSION,7-Zip"]="7z" ["COMPRESSION,XZ"]="xz" )
+
                   ARCH="${opts[ARCH,${{ inputs.arch }}]}"
+
                   RELEASE_TYPE="${opts[RELEASE_TYPE,${{ inputs.release_type }}]}"
+
                   if [[ "${{ inputs.magisk_ver }}" != "None" ]]; then
                       ROOT_SOL="magisk"
                       if [[ "${{ inputs.magisk_ver }}" != "Custom" ]]; then
                           MAGISK_VER="${opts[MAGISK_VER,${{ inputs.magisk_ver }}]}"
                       else
                           echo -e "${{ inputs.magisk_url }}\n out=magisk-debug.zip" > "$DOWNLOAD_DIR"/"$DOWNLOAD_CONF_NAME"
+
                           if ! aria2c --no-conf --log-level=info --log="$DOWNLOAD_DIR/aria2_custom_magisk_download.log" -x16 -s16 -j5 -c -R -m0 --async-dns=false --check-integrity --continue --allow-overwrite --conditional-get -d"$DOWNLOAD_DIR" -i"$DOWNLOAD_DIR"/"$DOWNLOAD_CONF_NAME"; then
                               echo "Magisk download error!"
                               exit 1
@@ -129,6 +134,7 @@ jobs:
                       ROOT_SOL="none"
                       MAGISK_VER="${opts[MAGISK_VER,Stable]}"
                   fi
+
                   if [[ "${{ inputs.arch }}" == "x86_64" ]]; then
                       GAPPS_VAR="${opts[GAPPS_VAR,${{ inputs.gapps_var }}]}"
                   else
@@ -140,6 +146,7 @@ jobs:
                           GAPPS_VAR="${opts[GAPPS_VAR,${{ inputs.gapps_var }}]}"
                       fi
                   fi
+
                   if [[ "${{ inputs.gapps_var }}" != "None" ]]; then
                       if [[ "${{ inputs.gapps_var }}" != *"MindTheGapps"* ]]; then
                           GAPPS_BRAND="OpenGApps"
@@ -156,6 +163,7 @@ jobs:
                                       "tvstock"
                                       "tvmini"
                                   )
+
                                   for file in "$DOWNLOAD_DIR"/OpenGApps-"$ARCH"-*.zip; do
                                       GAPPS_VAR=${file%%\.*}
                                       GAPPS_VAR=${GAPPS_VAR##*-}
@@ -196,6 +204,7 @@ jobs:
                           if [[ "${{ inputs.gapps_var }}" == "Custom (MindTheGapps)" ]]; then
                               if [[ -n "${${{ inputs.gapps_url }}+x}" ]]; then
                                   echo -e "${{ inputs.gapps_url }}\n out=MindTheGapps-"$ARCH".zip" > -i"$DOWNLOAD_DIR"/"$DOWNLOAD_CONF_NAME"
+
                                   if ! aria2c --no-conf --log-level=info --log="$DOWNLOAD_DIR/aria2_gapps_download.log" -x16 -s16 -j5 -c -R -m0 --async-dns=false --check-integrity --continue --allow-overwrite --conditional-get -d"$DOWNLOAD_DIR" -i"$DOWNLOAD_DIR"/"$DOWNLOAD_CONF_NAME"; then
                                       echo "MindTheGapps download error!"
                                       exit 1
@@ -207,16 +216,22 @@ jobs:
                       GAPPS_VAR="pico"
                       GAPPS_BRAND="none"
                   fi
+
                   REMOVE_AMAZON="${opts[REMOVE_AMAZON,${{ inputs.remove_amazon }}]}"
+
                   NOFIX_PROPS="${opts[NOFIX_PROPS,${{ inputs.nofix_props }}]}"
+
                   SKIP_DOWNLOAD_WSA="${opts[SKIP_DOWNLOAD_WSA,${{ inputs.skip_download_wsa }}]}"
+
                   COMPRESSION="--compress --compress-format ${opts[COMPRESSION,${{ inputs.compression }}]}"
+
                   if [[ "${{ inputs.gapps_var }}" == "Custom"* ]]; then
                       echo "Generate Download Links"
                       python3 generateWSALinks.py "$ARCH" "$RELEASE_TYPE" "$DOWNLOAD_DIR" "$DOWNLOAD_CONF_NAME"
                       if [[ "${{ inputs.magisk_ver }}" != "Custom" ]]; then
                           python3 generateMagiskLink.py "$MAGISK_VER" "$DOWNLOAD_DIR" "$DOWNLOAD_CONF_NAME"
                       fi
+
                       echo "Download Artifacts"
                       if ! aria2c --no-conf --log-level=info --log="$DOWNLOAD_DIR/aria2_download.log" -x16 -s16 -j5 -c -R -m0 --async-dns=false --check-integrity --continue --allow-overwrite --conditional-get -d"$DOWNLOAD_DIR" -i"$DOWNLOAD_DIR"/"$DOWNLOAD_CONF_NAME"; then
                           echo "Artifact download error!"
@@ -224,14 +239,17 @@ jobs:
                       fi
                       OFFLINE="--offline"
                   fi
+
                   COMMAND_LINE=(--arch "$ARCH" --release-type "$RELEASE_TYPE" --root-sol "$ROOT_SOL" --magisk-ver "$MAGISK_VER" "$CUSTOM_MAGISK" --gapps-brand "$GAPPS_BRAND" --gapps-variant "$GAPPS_VAR" "$COMPRESSION" "$REMOVE_AMAZON" "$NOFIX_PROPS" "$SKIP_DOWNLOAD_WSA" "$OFFLINE")
                   echo "COMMAND_LINE=${COMMAND_LINE[*]}"
+
                   chmod +x ./build.sh
                   ./build.sh $(echo "${COMMAND_LINE[@]}")
             - name: Generate Release Asset Name
               working-directory: ./output
               run: |
                   declare -A magisk_vers=( ["Stable"]="stable" ["Beta"]="beta" ["Canary"]="canary" ["Debug"]="debug" )
+
                   if [[ "${{ inputs.magisk_ver }}" == "None" ]]; then
                       magiskVer=""
                   elif [[ "${{ inputs.magisk_ver }}" == "Custom" ]]; then
@@ -240,6 +258,7 @@ jobs:
                       magiskVer="_Magisk-${{ env.MAGISK_VERSION }}"
                   fi
                   export magiskVer
+
                   if [[ "${{ inputs.gapps_var }}" == "None" ]]; then
                       gappsVar=""
                   elif [[ "${{ inputs.gapps_var }}" == *"MindTheGapps"* ]]; then
@@ -250,12 +269,14 @@ jobs:
                       gappsVar="_OpenGApps-${{ inputs.gapps_var }}"
                   fi
                   export gappsVar
+
                   if [[ "${{ inputs.remove_amazon }}" == "true" ]]; then
                       amazon=""
                   else
                       amazon="_Amazon-AppStore"
                   fi
                   export amazon
+
                   echo "release_asset_name=WSA_${{ env.WSA_VER }}_${{ inputs.arch }}$magiskVer$gappsVar${amazon}" >> $GITHUB_ENV
                   find . -maxdepth 1 -type f -name 'WSA.*' -exec bash -c 'mv "$1" "WSA_${{ env.WSA_VER }}_${{ inputs.arch }}${magiskVer}${gappsVar}${amazon}${1##*WSA}"' _ {} \;
             - name: Upload Asset
