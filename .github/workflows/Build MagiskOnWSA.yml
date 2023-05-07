@@ -1,3 +1,4 @@
+runs-on: self-hosted
 name: Build MagiskOnWSA
 on:
     workflow_dispatch:
